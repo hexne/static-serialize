@@ -1,9 +1,17 @@
 import std;
 import serialize;
 
+
+struct Base {
+    int key;
+    std::string val;
+};
+
+
 int main() {
 
-    func();
+    serialize<Base>();
+
 
     return 0;
 }

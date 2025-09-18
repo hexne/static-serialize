@@ -3,7 +3,17 @@ module;
 export module serialize;
 import std;
 
-export void func() {
-    constexpr auto info = ^^int;
+
+consteval auto get() {
+    return std::meta::access_context::unchecked();
+}
+
+
+
+
+export
+template <typename T>
+void serialize() {
+    constexpr auto info = ^^T;
     std::println("{}", std::meta::display_string_of(info));
 }
