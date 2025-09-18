@@ -38,9 +38,9 @@ target_compile_options(Module PRIVATE
     -freflection-latest
     -stdlib=libc++
     -nostdinc++
-    -resource-dir "${CUSTOM_CLANG_PATH}/lib/clang/21"
-    -isystem "${CUSTOM_CLANG_PATH}/include/c++/v1"
-    -isystem "${CUSTOM_CLANG_PATH}/lib/clang/21/include"
+    -resource-dir "clang-latest/lib/clang/21"
+    -isystem "clang-latest/include/c++/v1"
+    -isystem "clang-latest/lib/clang/21/include"
 )
 
 add_executable(untitled main.cpp)
