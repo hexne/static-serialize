@@ -88,16 +88,6 @@ void serialize(T obj, std::fstream &) {
         template for(constexpr auto info : members) {
             if constexpr (is_data_member(info)) {
                 handle_attributes<info>();
-                // constexpr auto annotations = std::define_static_array(
-                //     std::meta::annotations_of(info, ^^SerializeFlag)
-                // );
-
-                // template for (constexpr auto ann : annotations) {
-                //     if constexpr (std::meta::extract<SerializeFlag>(ann) == SerializeFlag::ignore) {
-                //         std::println("{}", "有ignore标签");
-                //     }
-                // }
-
             }
         }
 
