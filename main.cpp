@@ -3,8 +3,10 @@ import serialize;
 
 
 struct Base {
+    [[=SerializeFlag::ignore]]
     int key = 10;
-    std::string val = "20";
+    std::string str = "20";
+    inline static float fval = 30.f;
 
     void serialize() {
         std::println("call serialize");
@@ -16,7 +18,6 @@ struct Base {
     static void func() {
 
     }
-
 
 };
 
