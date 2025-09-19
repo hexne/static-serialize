@@ -1,26 +1,27 @@
 module;
 #include <meta>
+#include <stdexcept>
 export module serialize;
 import std;
 
 template<typename T>
-concept have_member_serialize = requires(T t) {
-    t.serialize();
+concept have_member_serialize = requires(T t, std::fstream &file) {
+    t.serialize(file);
 };
 
 template<typename T>
-concept have_global_serialize = requires(T t) {
-    serialize(t);
+concept have_global_serialize = requires(T t, std::fstream &file) {
+    serialize(t, file);
 };
 
 template<typename T>
-concept have_member_reserialize = requires(T t) {
-    t.reserialize();
+concept have_member_reserialize = requires(T t, std::fstream &file) {
+    t.reserialize(file);
 };
 
 template<typename T>
-concept have_global_reserialize = requires(T t) {
-    reserialize(t);
+concept have_global_reserialize = requires(T t, std::fstream &file) {
+    reserialize(t, file);
 };
 
 template <typename T>
@@ -49,45 +50,47 @@ consteval bool is_data_member(std::meta::info info) {
 }
 
 export enum class SerializeFlag {
-    ignore, bin, json
+    none, ignore, bin, json
 };
 
 template <std::meta::info info>
-void handle_attributes() {
+consteval SerializeFlag get_serialize_flag() {
     constexpr auto annotations = std::define_static_array(
         std::meta::annotations_of(info, ^^SerializeFlag)
     );
 
-    template for (constexpr auto ann : annotations) {
-        if constexpr (std::meta::extract<SerializeFlag>(ann) == SerializeFlag::ignore) {
-            std::println("{}", "有ignore标签");
-        }
-        // else if constexpr (std::meta::extrace<SerializeFlag>(ann) == SerializeFlag::bin) {
-
-        // }
-        // else if constexpr (std::meta::extrace<SerializeFlag>(ann) == SerializeFlag::json) {
-
-        // }
-    }
+    if constexpr (annotations.empty()) 
+        return SerializeFlag::none;
+    else if (annotations.size() == 1) 
+        return std::meta::extract<SerializeFlag>(annotations.front());
+    else 
+        throw std::runtime_error("SerializeFlag 参数过多");
 }
-
 
 
 export
 template <typename T>
-void serialize(T obj, std::fstream &) {
+void serialize(T obj, std::fstream &file) {
     if constexpr (support_serialize<T>) {
         if constexpr (have_member_serialize<T>)
-            obj.serialize();
+            obj.serialize(file);
         else 
-            serialize(obj);
+            serialize(obj, file);
     }
     else {
         constexpr auto members = get_members<T>();
 
         template for(constexpr auto info : members) {
             if constexpr (is_data_member(info)) {
-                handle_attributes<info>();
+                switch(get_serialize_flag<info>()) {
+                    case SerializeFlag::ignore:
+                        break;
+                    case SerializeFlag::none:
+                        [[fallthrough]];
+                    default:
+                        std::println("{}", std::meta::display_string_of(info));
+                        break;
+                }
             }
         }
 

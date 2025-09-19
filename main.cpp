@@ -8,10 +8,10 @@ struct Base {
     std::string str = "20";
     inline static float fval = 30.f;
 
-    void serialize() {
+    void serialize(std::fstream &file) {
         std::println("call serialize");
     }
-    // void reserialize() {
+    // void reserialize(std::fstream &file) {
     //     std::println("call reserialize");
     // }
 
