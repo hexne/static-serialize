@@ -1,4 +1,3 @@
-#include <type_traits>
 import std;
 import serialize;
 
@@ -12,20 +11,9 @@ struct Base {
     void serialize(std::fstream &file) {
         std::println("call serialize");
     }
-    // void reserialize(std::fstream &file) {
-    //     std::println("call reserialize");
-    // }
-
-    static void func() {
-
-    }
 
 };
 
-template <typename ...Args>
-void check() {
-    static_assert((std::is_fundamental_v<Args> && ...));
-}
 
 int main() {
 
