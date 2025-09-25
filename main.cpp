@@ -4,7 +4,7 @@ import serialize;
 
 
 struct Base {
-    [[=SerializeFlag::ignore]]
+    [[=static_serialize::serialize_flag::ignore]]
     int key = 10;
     long long val = 20;
     inline static float fval = 30.f;
@@ -29,16 +29,21 @@ void check() {
 
 int main() {
 
-    std::fstream file;
-    Base base;
-    if (std::filesystem::exists("./bin")) {
-        file.open("./bin", std::ios::binary | std::ios::in | std::ios::out);
-        reserialize(base, file);
-        std::println("{}", base.val);
+    if (std::filesystem::exists("data.bin")) {
+        std::fstream file("data.bin", std::ios::in | std::ios::binary);
+        Base base { .key = 2, .val = 2 };
+        Base::fval = 2;
+        static_serialize::reserialize_impl(base, file);
+        std::println("key={}, val={}, fval={}", base.key, base.val, base.fval);
     }
     else {
-        file.open("./bin", std::ios::binary | std::ios::out);
-        serialize(base, file);
+        std::fstream file("data.bin", std::ios::out | std::ios::binary);
+        Base base { .key = 1, .val = 1 };
+        Base::fval = 1;
+        static_serialize::serialize_impl(base, file);
+        std::println("key={}, val={}, fval={}", base.key, base.val, base.fval);
     }
+
+
     return 0;
 }
