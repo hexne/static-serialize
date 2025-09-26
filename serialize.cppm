@@ -43,7 +43,9 @@ consteval bool need_call_custom_operator() {
     return have_custom_serialize<T> && have_custom_reserialize<T>;
 }
 
-
+template <typename T>
+constexpr bool have_built_in_support = std::is_fundamental_v<T>
+                            || std::is_same_v<T, std::string>;
 
 consteval auto uncheck() {
     return std::meta::access_context::unchecked();
@@ -83,7 +85,7 @@ consteval serialize_flag get_serialize_flag() {
         throw std::runtime_error("SerializeFlag 参数过多");
 }
 
-
+// 基础类型的序列化和反序列化
 template <typename T>
 void serialize(T obj, std::fstream &file) requires std::is_fundamental_v<T> {
     file.write(reinterpret_cast<const char*>(&obj), sizeof(T));
@@ -95,11 +97,19 @@ void reserialize(T &obj, std::fstream &file) requires std::is_fundamental_v<T> {
 }
 
 
+// string的序列化和反序列化
+void serialize(std::string& str, std::fstream& file) {
+    size_t size = str.size();
+    file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+    file.write(str.data(), size);
+}
 
-enum class op_flag {
-    serialize,
-    reserialize
-};
+void reserialize(std::string& str, std::fstream& file) {
+    size_t size = 0;
+    file.read(reinterpret_cast<char*>(&size), sizeof(size));
+    str.resize(size);
+    file.read(str.data(), size);
+}
 
 template <typename T>
 void serialize_impl(T &obj, std::fstream &file) {
@@ -108,7 +118,9 @@ void serialize_impl(T &obj, std::fstream &file) {
     if constexpr (std::is_fundamental_v<T>) {
         serialize(obj, file);
     }
-    // @TODO 对于其他支持类型
+    else if constexpr (have_built_in_support<T>) {
+        serialize(obj, file);
+    }
     // 对于有自定义序列化和反序列化的类型
     else if constexpr (need_call_custom_operator<T>()) {
         if constexpr ( requires { obj.serialize(file); } )
@@ -148,7 +160,9 @@ void reserialize_impl(T &obj, std::fstream &file) {
     if constexpr (std::is_fundamental_v<T>) {
         reserialize(obj, file);
     }
-    // @TODO 对于其他支持类型
+    else if constexpr (have_built_in_support<T>) {
+        reserialize(obj, file);
+    }
     // 对于有自定义序列化和反序列化的类型
     else if constexpr (need_call_custom_operator<T>()) {
         if constexpr ( requires { obj.reserialize(file); } )
