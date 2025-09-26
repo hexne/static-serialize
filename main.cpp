@@ -26,14 +26,14 @@ int main() {
         Drived drived { .key = 1, .val = "hello" };
         drived.id = 1;
         static_serialize::serialize_impl(drived, file);
-        std::println("id={}, key={}, val={}", drived.id, drived.key, drived.val);
+        std::println("serialize res: id={}, key={}, val={}", drived.id, drived.key, drived.val);
     }
     else {
         std::fstream file("data.bin", std::ios::in | std::ios::binary);
         Drived drived { .key = 2, .val = "world" };
         drived.id = 2;
         static_serialize::reserialize_impl(drived, file);
-        std::println("id={}, key={}, val={}", drived.id, drived.key, drived.val);
+        std::println("reserialize res: id={}, key={}, val={}", drived.id, drived.key, drived.val);
     }
 
     return 0;
