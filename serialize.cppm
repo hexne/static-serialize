@@ -1,20 +1,28 @@
-module;
-#include <meta>
+#pragma once
+
+// module;
 #include <stdexcept>
 #include <utility>
-export module serialize;
-import std;
+#include <print>
+#include <string>
+#include <type_traits>
+#include <meta>
+// export module serialize;
+// import std;
 #define NAMESPACE_BEGIN namespace static_serialize {
 #define NAMESPACE_END }
 
 
-export
+// export
 NAMESPACE_BEGIN // namespace serialize
 
 // 控制序列化格式
 enum class serialize_flag {
     none, ignore
 };
+
+template <typename T>
+struct BinarySerializer {  };
 
 /**
  * @brief : 判断是否支持序列化和反序列化
@@ -27,6 +35,13 @@ concept have_custom_serialize = requires(T t) {
         // 不使用作用域解析运算符，让编译器通过ADL查找
         serialize(std::declval<T&>(), std::declval<std::fstream&>());
     };
+
+template <typename T>
+concept have_binary_serializer = requires {
+        BinarySerializer<T>::serialize(std::declval<T>(), std::declval<std::fstream&>());
+        BinarySerializer<T>::reserialize(std::declval<T&>(), std::declval<std::fstream&>());
+    };
+
 
 template<typename T>
 concept have_custom_reserialize = requires(T t) {
@@ -47,28 +62,6 @@ template <typename T>
 constexpr bool have_built_in_support = std::is_fundamental_v<T>
                             || std::is_same_v<T, std::string>;
 
-consteval auto uncheck() {
-    return std::meta::access_context::unchecked();
-}
-
-/**
- * @brief : 获取所有的成员
- */
-template <typename T>
-consteval auto get_members() {
-    return std::define_static_array(
-        std::meta::members_of(^^T, std::meta::access_context::unchecked())
-    );
-}
-
-/**
- * @brief : 获取info下的所有数据成员
- */
-consteval bool is_data_member(std::meta::info info) {
-    return std::meta::is_nonstatic_data_member(info)
-        || (is_static_member(info) && is_variable(info));
-}
-
 
 
 template <std::meta::info info>
@@ -85,41 +78,42 @@ consteval serialize_flag get_serialize_flag() {
         throw std::runtime_error("SerializeFlag 参数过多");
 }
 
-// 基础类型的序列化和反序列化
-template <typename T>
-void serialize(T obj, std::fstream &file) requires std::is_fundamental_v<T> {
-    file.write(reinterpret_cast<const char*>(&obj), sizeof(T));
-}
 
 template <typename T>
-void reserialize(T &obj, std::fstream &file) requires std::is_fundamental_v<T> {
-    file.read(reinterpret_cast<char*>(&obj), sizeof(T));
-}
+    requires std::is_fundamental_v<T>
+struct BinarySerializer<T> {
+    static void serialize(T obj, std::fstream &file) {
+        file.write(reinterpret_cast<const char*>(&obj), sizeof(T));
+    }
+    static void reserialize(T &obj, std::fstream &file) {
+        file.read(reinterpret_cast<char*>(&obj), sizeof(T));
+    }
+};
+
+template <>
+struct BinarySerializer<std::string> {
+    static void serialize(std::string& str, std::fstream& file) {
+        size_t size = str.size();
+        file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        file.write(str.data(), size);
+    }
+
+    static void reserialize(std::string& str, std::fstream& file) {
+        size_t size = 0;
+        file.read(reinterpret_cast<char*>(&size), sizeof(size));
+        str.resize(size);
+        file.read(str.data(), size);
+    }
+};
 
 
-// string的序列化和反序列化
-void serialize(std::string& str, std::fstream& file) {
-    size_t size = str.size();
-    file.write(reinterpret_cast<const char*>(&size), sizeof(size));
-    file.write(str.data(), size);
-}
-
-void reserialize(std::string& str, std::fstream& file) {
-    size_t size = 0;
-    file.read(reinterpret_cast<char*>(&size), sizeof(size));
-    str.resize(size);
-    file.read(str.data(), size);
-}
 
 template <typename T>
 void serialize_impl(T &obj, std::fstream &file) {
 
     // 对于基础类型
-    if constexpr (std::is_fundamental_v<T>) {
-        serialize(obj, file);
-    }
-    else if constexpr (have_built_in_support<T>) {
-        serialize(obj, file);
+    if constexpr (have_built_in_support<T> || have_binary_serializer<T>) {
+        BinarySerializer<T>::serialize(obj, file);
     }
     // 对于有自定义序列化和反序列化的类型
     else if constexpr (need_call_custom_operator<T>()) {
@@ -130,11 +124,18 @@ void serialize_impl(T &obj, std::fstream &file) {
     }
     // 对于其他类型
     else {
+        // 先递归基类，后处理当前成员
+        constexpr auto bases_info = std::define_static_array(
+            std::meta::bases_of(^^T, std::meta::access_context::unchecked())
+        );
+        template for (constexpr auto base_info : bases_info) {
+            using Base = typename [:std::meta::type_of(base_info):];
+            serialize_impl<Base>(static_cast<Base&>(obj), file);
+        }
+
         constexpr auto members = std::define_static_array(
-            std::meta::nonstatic_data_members_of(^^T, uncheck()));
+            std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()));
         template for(constexpr auto info : members) {
-            if constexpr (!is_data_member(info)) 
-                continue;
             if constexpr (get_serialize_flag<info>() == serialize_flag::ignore)
                 continue;
             serialize_impl<decltype(obj.[:info:])>(obj.[:info:], file);
@@ -142,10 +143,8 @@ void serialize_impl(T &obj, std::fstream &file) {
 
         // 静态数据成员
         constexpr auto static_members = std::define_static_array(
-            std::meta::static_data_members_of(^^T, uncheck()));
+            std::meta::static_data_members_of(^^T, std::meta::access_context::unchecked()));
         template for(constexpr auto info : static_members) {
-            if constexpr (!is_data_member(info)) 
-                continue;
             if constexpr (get_serialize_flag<info>() == serialize_flag::ignore)
                 continue;
             serialize_impl<decltype(obj.[:info:])>(obj.[:info:], file);
@@ -157,11 +156,8 @@ template <typename T>
 void reserialize_impl(T &obj, std::fstream &file) {
 
     // 对于基础类型
-    if constexpr (std::is_fundamental_v<T>) {
-        reserialize(obj, file);
-    }
-    else if constexpr (have_built_in_support<T>) {
-        reserialize(obj, file);
+    if constexpr (have_built_in_support<T> || have_binary_serializer<T>) {
+        BinarySerializer<T>::reserialize(obj, file);
     }
     // 对于有自定义序列化和反序列化的类型
     else if constexpr (need_call_custom_operator<T>()) {
@@ -172,11 +168,18 @@ void reserialize_impl(T &obj, std::fstream &file) {
     }
     // 对于其他类型
     else {
+
+        constexpr auto bases_info = std::define_static_array(
+            std::meta::bases_of(^^T, std::meta::access_context::unchecked())
+        );
+        template for (constexpr auto base_info : bases_info) {
+            using Base = typename [:std::meta::type_of(base_info):];
+            reserialize_impl<Base>(static_cast<Base&>(obj), file);
+        }
+
         constexpr auto members = std::define_static_array(
-            std::meta::nonstatic_data_members_of(^^T, uncheck()));
+            std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()));
         template for(constexpr auto info : members) {
-            if constexpr (!is_data_member(info)) 
-                continue;
 
             if constexpr (get_serialize_flag<info>() == serialize_flag::ignore)
                 continue;
@@ -186,7 +189,7 @@ void reserialize_impl(T &obj, std::fstream &file) {
 
 
         constexpr auto static_members = std::define_static_array(
-            std::meta::static_data_members_of(^^T, uncheck()));
+            std::meta::static_data_members_of(^^T, std::meta::access_context::unchecked()));
         template for(constexpr auto info : static_members) {
             if constexpr (get_serialize_flag<info>() == serialize_flag::ignore)
                 continue;

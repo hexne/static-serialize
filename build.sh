@@ -20,9 +20,9 @@ if [ ! -f std.pcm ]; then
     check_error
 fi
 
-echo "compile serialize.pcm..."
-${compile} ${compile_op} -fmodule-file=std=std.pcm --precompile ../serialize.cppm
-check_error
+# echo "compile serialize.pcm..."
+# ${compile} ${compile_op} -fmodule-file=std=std.pcm --precompile ../serialize.cppm
+# check_error
 
 echo "compile a.out..."
 ${compile} ${compile_op} -fmodule-file=std=std.pcm -fmodule-file=serialize=serialize.pcm ../main.cpp
