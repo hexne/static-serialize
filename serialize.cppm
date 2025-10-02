@@ -21,6 +21,13 @@ enum class serialize_flag {
     none, ignore
 };
 
+struct id {
+    int value;
+    consteval id(int v) : value(v) {  }
+};
+
+
+
 template <typename T>
 struct BinarySerializer {  };
 
@@ -79,12 +86,26 @@ consteval serialize_flag get_serialize_flag() {
 
     if constexpr (annotations.empty()) 
         return serialize_flag::none;
-    else if (annotations.size() == 1) 
+    else if constexpr (annotations.size() == 1) 
         return std::meta::extract<serialize_flag>(annotations.front());
     else 
-        throw std::runtime_error("SerializeFlag 参数过多");
+        static_assert(false, "SerializeFlag 参数过多");
 }
 
+// 获取id
+template <std::meta::info info>
+consteval int get_id() {
+    constexpr auto ids = std::define_static_array(
+        std::meta::annotations_of(info, ^^id)
+    );
+
+    if constexpr (ids.empty()) 
+        return serialize_flag::none;
+    else if constexpr (ids.size() == 1) 
+        return std::meta::extract<int>(ids.front()::value);
+    else 
+        static_assert(false, "id参数过多");
+}
 
 template <typename T>
     requires std::is_fundamental_v<T>
