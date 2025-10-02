@@ -117,15 +117,23 @@ struct BinarySerializer<std::string> {
 #define def(OP)\
 template <typename T>\
 void OP(T &obj, std::fstream &file) {\
+    /* 对于内置支持类型 */\
     if constexpr (have_built_in_support<T> || have_binary_serializer<T>) {\
         BinarySerializer<T>::OP(obj, file);\
     }\
+    /* 对于指针和智能指针类型 */\
+    else if constexpr (have_pointer_type<T>::value\
+                    || std::is_pointer_v<T>) {\
+        static_assert(false, "指针和智能指针需用户提供序列化函数");\
+    }\
+    /* 对于用户自定义的序列化和反序列化函数 */\
     else if constexpr (need_call_custom_operator<T>()) {\
         if constexpr ( requires { obj.OP(file); } )\
             obj.OP(file);\
         else \
             OP(obj, file);\
     }\
+    /* 对于结构体, 递归操作 */\
     else {\
         constexpr auto bases_info = std::define_static_array(\
             std::meta::bases_of(^^T, std::meta::access_context::unchecked())\
