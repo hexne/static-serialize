@@ -35,7 +35,7 @@ int main() {
         drived.id = 1;
         drived.key = 1;
         drived.set("hello");
-        static_serialize::serialize_impl(drived, file);
+        static_serialize::serialize(drived, file);
         std::println("serialize res: id={}, key={}, val={}", drived.id, drived.key, drived.get());
     }
     else {
@@ -44,8 +44,8 @@ int main() {
         drived.id = 2;
         drived.key = 2;
         drived.set("world");
-        static_serialize::reserialize_impl(drived, file);
-        std::println("serialize res: id={}, key={}, val={}", drived.id, drived.key, drived.get());
+        static_serialize::reserialize(drived, file);
+        std::println("reserialize res: id={}, key={}, val={}", drived.id, drived.key, drived.get());
     }
 
     return 0;
