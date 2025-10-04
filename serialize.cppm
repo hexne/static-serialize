@@ -68,14 +68,20 @@ consteval bool need_call_custom_operator() {
 
 template <typename T>
 struct is_std_vector : std::false_type {};
-
 template <typename T>
 struct is_std_vector<std::vector<T>> : std::true_type {};
 
 template <typename T>
+struct is_std_array : std::false_type {};
+template <typename T, size_t N>
+struct is_std_array<std::array<T, N>> : std::true_type {};
+
+
+template <typename T>
 constexpr bool have_built_in_support = std::is_fundamental_v<T>
                             || std::is_same_v<T, std::string>
-                            || is_std_vector<T>::value;
+                            || is_std_vector<T>::value
+                            || is_std_array<T>::value;
 
 template <typename T>
 struct have_pointer_type : std::false_type {};
@@ -158,6 +164,21 @@ struct BinarySerializer<std::vector<T>> {
         file.read(reinterpret_cast<char*>(&size), sizeof(size));
         vec.resize(size);
         for (auto& item : vec) {
+            BinarySerializer<T>::deserialize(item, file);  // 明确调用
+        }
+    }
+};
+
+template <typename T, size_t N>
+struct BinarySerializer<std::array<T, N>> {
+    static void serialize(std::array<T, N>& arr, std::fstream& file) {
+        for (auto& item : arr) {
+            BinarySerializer<T>::serialize(item, file);  // 明确调用
+        }
+    }
+
+    static void deserialize(std::array<T, N>& arr, std::fstream& file) {
+        for (auto& item : arr) {
             BinarySerializer<T>::deserialize(item, file);  // 明确调用
         }
     }

@@ -9,8 +9,8 @@
 - [ ] 版本控制
 - [x] 基础类型  
 - [x] std::string  
-- [ ] std::array
-- [ ] std::vector
+- [x] std::array
+- [x] std::vector
 - [x] 检测指针，存在指针时需用户提供序列化函数(包括shared_ptr和unique_ptr)
 
 # 注意事项

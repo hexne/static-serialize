@@ -31,7 +31,7 @@ struct Drived : Base {
     std::string get() {
         return val;
     }
-    std::vector<int> vec;
+    std::array<int, 5> vec;
 private:
     std::string val;
 };
@@ -45,7 +45,8 @@ int main() {
         Drived drived;
         drived.id = 1;
         drived.key = 1;
-        drived.vec = {1,2,3,4,5};
+        for (int i = 0;i < drived.vec.size(); ++i) 
+            drived.vec[i] = i + 1;
         drived.set("hello");
         static_serialize::serialize(drived, file);
         std::println("serialize res: id={}, key={}, val={}", drived.id, drived.key, drived.get());
@@ -56,7 +57,8 @@ int main() {
         Drived drived;
         drived.id = 2;
         drived.key = 2;
-        drived.vec = {5,4,3,3,2,1};
+        for (int i = 0;i < drived.vec.size(); ++i) 
+            drived.vec[i] = 5 - i;
         drived.set("world");
         static_serialize::deserialize(drived, file);
         std::println("deserialize res: id={}, key={}, val={}", drived.id, drived.key, drived.get());
