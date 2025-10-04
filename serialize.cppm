@@ -46,28 +46,36 @@ concept have_custom_serialize = requires(T t) {
 template <typename T>
 concept have_binary_serializer = requires {
         BinarySerializer<T>::serialize(std::declval<T>(), std::declval<std::fstream&>());
-        BinarySerializer<T>::reserialize(std::declval<T&>(), std::declval<std::fstream&>());
+        BinarySerializer<T>::deserialize(std::declval<T&>(), std::declval<std::fstream&>());
     };
 
 
 template<typename T>
-concept have_custom_reserialize = requires(T t) {
-        t.reserialize(std::declval<std::fstream&>());    // 有无成员函数
+concept have_custom_deserialize = requires(T t) {
+        t.deserialize(std::declval<std::fstream&>());    // 有无成员函数
     }
     || requires(T t) {
         // 不使用作用域解析运算符，让编译器通过ADL查找
-        reserialize(std::declval<T&>(), std::declval<std::fstream&>());
+        deserialize(std::declval<T&>(), std::declval<std::fstream&>());
     };
 
     
 template <typename T> 
 consteval bool need_call_custom_operator() {
-    return have_custom_serialize<T> && have_custom_reserialize<T>;
+    return have_custom_serialize<T> && have_custom_deserialize<T>;
 }
+
+
+template <typename T>
+struct is_std_vector : std::false_type {};
+
+template <typename T>
+struct is_std_vector<std::vector<T>> : std::true_type {};
 
 template <typename T>
 constexpr bool have_built_in_support = std::is_fundamental_v<T>
-                            || std::is_same_v<T, std::string>;
+                            || std::is_same_v<T, std::string>
+                            || is_std_vector<T>::value;
 
 template <typename T>
 struct have_pointer_type : std::false_type {};
@@ -99,25 +107,25 @@ consteval int get_id() {
         std::meta::annotations_of(info, ^^id)
     );
 
-    if constexpr (ids.empty()) 
-        return serialize_flag::none;
-    else if constexpr (ids.size() == 1) 
-        return std::meta::extract<int>(ids.front()::value);
+    if constexpr (ids.size() == 1) 
+        return std::meta::extract<id>(ids.front()).value;
     else 
         static_assert(false, "id参数过多");
 }
 
+// 基础类型特化
 template <typename T>
-    requires std::is_fundamental_v<T>
+requires std::is_fundamental_v<T>
 struct BinarySerializer<T> {
-    static void serialize(T obj, std::fstream &file) {
+    static void serialize(T obj, std::fstream& file) {
         file.write(reinterpret_cast<const char*>(&obj), sizeof(T));
     }
-    static void reserialize(T &obj, std::fstream &file) {
+    static void deserialize(T& obj, std::fstream& file) {
         file.read(reinterpret_cast<char*>(&obj), sizeof(T));
     }
 };
 
+// std::string 特化
 template <>
 struct BinarySerializer<std::string> {
     static void serialize(std::string& str, std::fstream& file) {
@@ -126,13 +134,37 @@ struct BinarySerializer<std::string> {
         file.write(str.data(), size);
     }
 
-    static void reserialize(std::string& str, std::fstream& file) {
+    static void deserialize(std::string& str, std::fstream& file) {
         size_t size = 0;
         file.read(reinterpret_cast<char*>(&size), sizeof(size));
         str.resize(size);
         file.read(str.data(), size);
     }
 };
+
+// std::vector 的偏特化
+template <typename T>
+struct BinarySerializer<std::vector<T>> {
+    static void serialize(std::vector<T>& vec, std::fstream& file) {
+        size_t size = vec.size();
+        file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        for (auto& item : vec) {
+            BinarySerializer<T>::serialize(item, file);  // 明确调用
+        }
+    }
+
+    static void deserialize(std::vector<T>& vec, std::fstream& file) {
+        size_t size = 0;
+        file.read(reinterpret_cast<char*>(&size), sizeof(size));
+        vec.resize(size);
+        for (auto& item : vec) {
+            BinarySerializer<T>::deserialize(item, file);  // 明确调用
+        }
+    }
+};
+
+
+
 
 
 #define def(OP)\
@@ -181,7 +213,7 @@ void OP(T &obj, std::fstream &file) {\
 }
 
 def(serialize);
-def(reserialize);
+def(deserialize);
 #undef def
 
 

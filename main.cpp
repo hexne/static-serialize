@@ -5,6 +5,16 @@
 #include <fstream>
 #include "serialize.cppm"
 
+
+void print(auto vec) {
+    std::print("{{");
+    for(const auto &val : vec)
+        std::print("{} ", val);
+    std::print("}}");
+
+}
+
+
 struct Base {
     int id{};
     static void serialize(std::fstream &file) {
@@ -21,6 +31,7 @@ struct Drived : Base {
     std::string get() {
         return val;
     }
+    std::vector<int> vec;
 private:
     std::string val;
 };
@@ -34,18 +45,22 @@ int main() {
         Drived drived;
         drived.id = 1;
         drived.key = 1;
+        drived.vec = {1,2,3,4,5};
         drived.set("hello");
         static_serialize::serialize(drived, file);
         std::println("serialize res: id={}, key={}, val={}", drived.id, drived.key, drived.get());
+        print(drived.vec);
     }
     else {
         std::fstream file("data.bin", std::ios::in | std::ios::binary);
         Drived drived;
         drived.id = 2;
         drived.key = 2;
+        drived.vec = {5,4,3,3,2,1};
         drived.set("world");
-        static_serialize::reserialize(drived, file);
-        std::println("reserialize res: id={}, key={}, val={}", drived.id, drived.key, drived.get());
+        static_serialize::deserialize(drived, file);
+        std::println("deserialize res: id={}, key={}, val={}", drived.id, drived.key, drived.get());
+        print(drived.vec);
     }
 
     return 0;
